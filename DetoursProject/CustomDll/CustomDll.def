@@ -1,0 +1,8 @@
+;
+; CustomDLL.def : Declares the module parameters for the DLL.
+;
+
+LIBRARY "CustomDLL"
+EXPORTS
+    TimedSleepEx   PRIVATE
+    SleepEx   PRIVATE

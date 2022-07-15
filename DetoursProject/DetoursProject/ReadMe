@@ -1,0 +1,5 @@
+To run the project need to build the Detours library and this project.
+Also, you need to move withdll.exe from ..\Detours-master\bin.X86 to the project folder.
+
+Open cmd and run: 
+	withdll.exe /d:CustomDll.dll DetoursProject.exe
