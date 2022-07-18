@@ -4,5 +4,5 @@
 
 LIBRARY "CustomDLL"
 EXPORTS
-    TimedSleepEx   PRIVATE
-    SleepEx   PRIVATE
+    HookNtClose   PRIVATE
+    TrueNtClose   PRIVATE

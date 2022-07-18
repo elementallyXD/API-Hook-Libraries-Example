@@ -1,7 +1,3 @@
-//  This DLL will detour the Windows SleepEx API so that TimedSleep function
-//  gets called instead.  TimedSleepEx records the before and after times, and
-//  calls the real SleepEx API through the TrueSleepEx function pointer.
-
 #include "pch.h"
 #include <stdio.h>
 
@@ -9,20 +5,17 @@
 #include <detours.h>
 
 // Declare original function
-static LONG dwSlept = 0;
-static DWORD(WINAPI* TrueSleepEx)(DWORD dwMilliseconds, BOOL bAlertable) = SleepEx;
+typedef ULONG(WINAPI* _NtClose)(HANDLE Handle);
+_NtClose TrueNtClose = (_NtClose)GetProcAddress(GetModuleHandleW(L"ntdll"), "NtClose");
 
 // Declare your function that will be handle a hook
-DWORD WINAPI TimedSleepEx(DWORD dwMilliseconds, BOOL bAlertable)
+ULONG WINAPI HookNtClose(HANDLE Handle)
 {
-    // See https://docs.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleepex
-    DWORD dwBeg = GetTickCount();
-    DWORD ret = TrueSleepEx(dwMilliseconds, bAlertable);
-    DWORD dwEnd = GetTickCount();
+    // Changing parameter of NtClose to NULL
+    // See https://docs.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntclose
 
-    InterlockedExchangeAdd(&dwSlept, dwEnd - dwBeg);
-
-    return ret;
+    printf("Hooked NtClose changed parameter from 0x%p to NULL\n", Handle);
+    return TrueNtClose(NULL);
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
@@ -50,27 +43,27 @@ BOOL APIENTRY DllMain( HMODULE hModule,
 
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourAttach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+        DetourAttach(&(PVOID&)TrueNtClose, HookNtClose);
         error = DetourTransactionCommit();
 
         if (error == NO_ERROR) {
             printf("CustomDll.dll:"
-                " Detoured SleepEx().\n");
+                " Detoured NtClose().\n");
         }
         else {
             printf("CustomDll.dll:"
-                " Error detouring SleepEx(): %ld\n", error);
+                " Error detouring NtClose(): %ld\n", error);
         }
         break;
 
     case DLL_PROCESS_DETACH:
         DetourTransactionBegin();
         DetourUpdateThread(GetCurrentThread());
-        DetourDetach(&(PVOID&)TrueSleepEx, TimedSleepEx);
+        DetourDetach(&(PVOID&)TrueNtClose, HookNtClose);
         error = DetourTransactionCommit();
 
         printf("CustomDll.dll:"
-            " Removed SleepEx() (result=%ld), slept %ld ticks.\n", error, dwSlept);
+            " Removed NtClose() (result=%ld)\n", error);
         fflush(stdout);
         break;
     }
